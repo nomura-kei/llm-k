@@ -1,0 +1,8 @@
+# Demonstrates variable declaration and usage
+
+INT FUNC main PARAM
+  LET INT x = 42
+  LET STRING name = "Alice"
+  LET BOOL flag = 1 == 1
+  RETURN x
+END FUNC
