@@ -1,4 +1,4 @@
-# MiniLang Spec v1.0
+# ai-kaizen-lang (aikai) Spec v1.0
 
 ## 1. 基本方針
 
