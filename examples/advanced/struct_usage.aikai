@@ -1,0 +1,13 @@
+# Demonstrates struct definition and usage
+
+STRUCT Point INT x INT y END STRUCT
+
+Point FUNC create_point PARAM INT x PARAM INT y
+  RETURN {x, y}
+END FUNC
+
+INT FUNC distance PARAM Point p1 PARAM Point p2
+  LET INT dx = p1.x - p2.x
+  LET INT dy = p1.y - p2.y
+  RETURN dx * dx + dy * dy
+END FUNC
