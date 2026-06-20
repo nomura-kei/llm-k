@@ -1,0 +1,9 @@
+# Demonstrates for loops
+
+INT FUNC sum_array PARAM ARRAY ! INT numbers RETURN
+  VAR INT sum = 0
+  FOR numbers AS n
+    sum = sum + n
+  END FOR
+  RETURN sum
+END FUNC
