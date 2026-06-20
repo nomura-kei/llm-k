@@ -1,0 +1,9 @@
+# Demonstrates parallel task spawning and joining
+
+INT FUNC worker PARAM INT x RETURN x * 2 END FUNC
+
+INT FUNC main RETURN
+  LET TASK INT t = std.task.spawn worker 21
+  LET INT result = std.task.join t
+  RETURN result
+END FUNC
