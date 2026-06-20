@@ -1,0 +1,12 @@
+# Demonstrates ERROR handling
+
+STRING FUNC read_config PARAM STRING path ERROR
+  RETURN std.io.read path
+END FUNC
+
+STRING FUNC main ERROR
+  LET STRING config = read_config "config.txt" ERROR err
+    std.error.raise "CONFIG_ERROR"
+  END FUNC
+  RETURN config
+END FUNC
