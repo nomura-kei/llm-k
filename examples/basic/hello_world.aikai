@@ -1,0 +1,4 @@
+# Simple hello world program
+# Demonstrates basic function definition and return
+
+STRING FUNC main RETURN "Hello, World!" END FUNC
