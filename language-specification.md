@@ -478,7 +478,19 @@ Implicit type inference is not supported.
 
 ---
 
-## 4.2 Primitive Types
+## 4.2 Built-in Literals
+
+LLMK provides the following built-in literals.
+
+| Literal | Description |
+|----------|-------------|
+| TRUE | Boolean true |
+| FALSE | Boolean false |
+| NONE | Absence of a meaningful value |
+
+---
+
+## 4.3 Primitive Types
 
 LLMK provides the following primitive types.
 
@@ -493,7 +505,7 @@ Additional primitive types may be added by future language versions.
 
 ---
 
-## 4.3 Composite Types
+## 4.4 Composite Types
 
 LLMK provides the following composite types.
 
@@ -520,7 +532,7 @@ ARRAY ! OPTIONAL ! User
 
 ---
 
-## 4.4 TYPE
+## 4.5 TYPE
 
 TYPE defines a user-defined value type.
 
@@ -541,7 +553,7 @@ Composition is the preferred design approach.
 
 ---
 
-## 4.5 Default Values
+## 4.6 Default Values
 
 Every type has a well-defined default value.
 
@@ -562,7 +574,25 @@ The default values are defined as follows.
 Uninitialized values do not exist in LLMK.
 
 ---
-## 4.6 Type Construction
+
+## 4.7 NONE
+
+`NONE` represents the absence of a meaningful value.
+
+`NONE` is a built-in literal provided by the language.
+
+`NONE` is used in the following situations.
+
+- The default value of `OPTIONAL ! T`
+- The return value of functions that do not produce a meaningful value
+
+LLMK does not provide separate concepts such as `NULL`, `NIL`, `VOID`, or `UNIT`.
+
+The language uses `NONE` as the single representation of the absence of a meaningful value.
+
+---
+
+## 4.8 Type Construction
 
 Instances of a TYPE are created using the type construction expression.
 
@@ -625,8 +655,7 @@ Named arguments are not supported.
 User-defined constructors are not supported.
 
 ---
-
-## 4.6 Value Semantics
+## 4.9 Value Semantics
 
 All values are copied by default.
 
@@ -646,7 +675,7 @@ Reference semantics require the explicit use of `REF`.
 
 ---
 
-## 4.7 Reference Semantics
+## 4.10 Reference Semantics
 
 LLMK uses value semantics by default.
 
@@ -658,7 +687,7 @@ The detailed behavior of `REF` is defined in a later chapter.
 
 ---
 
-## 4.8 Type Conversion
+## 4.11 Type Conversion
 
 Implicit type conversion is not supported.
 
@@ -676,7 +705,7 @@ STRING(value)
 
 ---
 
-## 4.9 Equality
+## 4.12 Equality
 
 Primitive types support value equality.
 
@@ -686,7 +715,7 @@ Composite types compare their contained values recursively.
 
 ---
 
-## 4.10 Design Principles
+## 4.13 Design Principles
 
 The type system follows these principles.
 
@@ -696,4 +725,346 @@ The type system follows these principles.
 - Value semantics are the default.
 - Reference semantics require explicit `REF`.
 - Composition is preferred over inheritance.
+
+---
+
+# 5. Variables
+
+## 5.1 Overview
+
+Variables store values.
+
+Every variable has exactly one type.
+
+The type of every variable shall be explicitly declared.
+
+Variables are declared using either `LET` or `VAR`.
+
+---
+
+## 5.2 LET
+
+`LET` declares an immutable variable binding.
+
+A `LET` variable shall be initialized when declared.
+
+Example
+
+```
+LET INT count = 0
+
+LET STRING name = "Alice"
+
+LET User user = User()
+```
+
+A `LET` variable cannot be assigned another value after initialization.
+
+Example
+
+```
+LET INT count = 0
+
+count = 1      // Invalid
+```
+
+When the value is a TYPE, `LET` prevents reassignment of the variable itself.
+
+The fields of the TYPE remain mutable.
+
+Example
+
+```
+LET User user = User()
+
+user.name = "Alice"      // Valid
+
+user = User()            // Invalid
+```
+
+---
+
+## 5.3 VAR
+
+`VAR` declares a mutable variable binding.
+
+A `VAR` variable shall be initialized when declared.
+
+Example
+
+```
+VAR INT count = 0
+
+count = 1
+```
+
+TYPE variables may also be reassigned.
+
+Example
+
+```
+VAR User user = User()
+
+user = User()
+```
+
+---
+
+## 5.4 Initialization
+
+Every variable shall be initialized at the point of declaration.
+
+Uninitialized variables are not supported.
+
+Valid
+
+```
+LET INT count = 0
+
+VAR User user = User()
+```
+
+Invalid
+
+```
+LET INT count
+
+VAR User user
+```
+
+---
+
+## 5.5 Assignment
+
+Assignment replaces the current value of a mutable variable.
+
+Assignments to `LET` variables are not permitted.
+
+Assignment copies the value.
+
+Reference semantics are not used unless explicitly specified by the language.
+
+Example
+
+```
+VAR INT count = 0
+
+count = 10
+```
+
+---
+
+## 5.6 Scope
+
+Variables are visible only within the scope in which they are declared.
+
+Variables declared inside a function are local to that function.
+
+Shadowing should be avoided.
+
+Language implementations may reject duplicate declarations within the same scope.
+
+---
+
+## 5.7 Design Principles
+
+The variable model follows these principles.
+
+- Every variable has exactly one type.
+- Every variable is initialized.
+- Variables are declared using either `LET` or `VAR`.
+- `LET` defines an immutable variable binding.
+- `VAR` defines a mutable variable binding.
+- TYPE fields remain mutable.
+- Assignment copies values by default.
+
+
+---
+
+# 6. Functions
+
+## 6.1 Overview
+
+Functions define program behavior.
+
+Functions are the smallest unit of executable logic in LLMK.
+
+Complex behavior should be expressed by composing small functions rather than by deeply nested control structures.
+
+---
+
+## 6.2 Function Declaration
+
+Functions are declared using the `FUNCTION` keyword.
+
+Example
+
+```
+FUNCTION PrintUser(
+
+    User user
+)
+```
+
+Function names shall be unique within a module.
+
+If a module defines a TYPE, every function in the module belongs to that TYPE.
+
+---
+
+## 6.3 Parameters
+
+Every parameter shall have an explicitly declared type.
+
+Parameters are passed by value unless declared with `REF`.
+
+Named arguments are not supported.
+
+Arguments are matched by position.
+
+Example
+
+```
+FUNCTION Print(
+
+    User user
+)
+```
+
+---
+
+## 6.4 REF Parameters
+
+`REF` declares a parameter that is passed by reference.
+
+Example
+
+```
+FUNCTION Rename(
+
+    REF User user
+
+    STRING name
+)
+```
+
+A function with a `REF` parameter may modify the caller's value.
+
+`REF` may only be used for function parameters.
+
+Reference variables are not supported.
+
+---
+
+## 6.5 Return Values
+
+Every function returns exactly one value.
+
+The final executable statement of a function shall produce the return value.
+
+The `RETURN` statement is not supported.
+
+Every function shall terminate with a statement that produces a value.
+
+Functions that do not produce a meaningful value shall terminate with the literal `NONE`.
+
+---
+
+## 6.6 Function Calls
+
+Functions are called using parentheses.
+
+Example
+
+```
+Save(user)
+
+Print(name)
+```
+
+Arguments are evaluated before the function is executed.
+
+Nested function calls are not supported.
+
+Valid
+
+```
+LET User user = Parse(text)
+
+Save(user)
+```
+
+Invalid
+
+```
+Save(Parse(text))
+```
+
+---
+
+## 6.7 Functions in TYPE Modules
+
+When a module defines a TYPE, every function in the module belongs to that TYPE.
+
+Example
+
+```
+User.llmk
+
+TYPE User
+
+    STRING name
+
+FUNCTION Rename(
+
+    REF User user
+
+    STRING name
+)
+
+FUNCTION Validate(
+
+    User user
+)
+```
+
+The functions `Rename` and `Validate` belong to the `User` TYPE.
+
+No separate method declaration syntax exists.
+
+The language does not define concepts such as methods, member functions, `this`, or `self`.
+
+---
+
+## 6.8 Function Composition
+
+Functions should perform one logical task.
+
+Larger operations should be composed from smaller functions.
+
+Example
+
+```
+ValidateUser(user)
+
+SaveUser(user)
+
+NotifyUser(user)
+```
+
+instead of one large function.
+
+---
+
+## 6.9 Design Principles
+
+The function model follows these principles.
+
+- Functions are the smallest unit of behavior.
+- Parameters are passed by value by default.
+- `REF` explicitly declares mutable parameters.
+- `RETURN` is not supported.
+- Function calls shall not be nested.
+- Large functions should be divided into smaller functions.
+- Functions belonging to a TYPE are determined by their module.
 
