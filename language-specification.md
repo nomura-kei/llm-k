@@ -465,6 +465,15 @@ The program structure of LLMK follows these principles.
 - Global namespaces are not supported.
 - Explicit module declarations are unnecessary.
 
+---
+
+## 3.8 Program Execution
+
+LLMK does not define a reserved entry function.
+
+The execution environment specifies the module and function to execute.
+
+---
 
 # 4. Type System
 
@@ -1068,3 +1077,1662 @@ The function model follows these principles.
 - Large functions should be divided into smaller functions.
 - Functions belonging to a TYPE are determined by their module.
 
+---
+
+# 7. Control Flow
+
+## 7.1 Overview
+
+LLMK control flow is designed to minimize nesting and ambiguity.
+
+Control structures do not contain arbitrary statements.
+
+Control structures only select or invoke functions.
+
+Complex behavior shall be expressed by composing functions.
+
+---
+
+## 7.2 IF
+
+`IF` executes a function when a boolean condition is true.
+
+Syntax
+
+```
+IF condition
+
+    Function()
+```
+
+The condition shall be a BOOL value.
+
+The condition shall not contain expressions.
+
+Example
+
+```
+IF isSuccess
+
+    Execute()
+```
+
+`IF` does not provide an `ELSE` clause.
+
+Alternative behavior shall be expressed using another condition.
+
+Example
+
+```
+IF isSuccess
+
+    ExecuteSuccess()
+
+IF isFailed
+
+    ExecuteFailure()
+```
+
+---
+
+## 7.3 MATCH
+
+`MATCH` selects a function based on the value of a variable.
+
+Syntax
+
+```
+MATCH variable
+
+    value Function()
+```
+
+Example
+
+```
+MATCH status
+
+    SUCCESS HandleSuccess()
+
+    FAILED HandleFailure()
+```
+
+`MATCH` does not execute arbitrary statements.
+
+Each branch shall call exactly one function.
+
+---
+
+## 7.4 FOR
+
+`FOR` applies a function to every element of an array.
+
+Elements are processed in array order.
+
+Syntax
+
+```
+FOR array Function()
+```
+
+Example
+
+```
+FOR users SendNotification()
+```
+
+The function receives one element at a time.
+
+The execution order is guaranteed.
+
+The result values are collected in an array when the function returns a value.
+
+---
+
+## 7.5 PARFOR
+
+`PARFOR` applies a function to every element of an array in parallel.
+
+All elements shall be processed.
+
+Execution order is not guaranteed.
+
+The caller waits until all executions complete.
+
+Syntax
+
+```
+PARFOR array Function()
+```
+
+Example
+
+```
+PARFOR users SendNotification()
+```
+
+---
+
+## 7.6 PARFOR Results
+
+When the executed function returns values, `PARFOR` returns an array containing all results.
+
+The result array order is identical to the input array order.
+
+Example
+
+```
+LET ARRAY ! Result results = PARFOR users ProcessUser()
+```
+
+Even though execution is parallel, result ordering is deterministic.
+
+---
+
+## 7.7 PARFOR Error Handling
+
+If an execution fails, `PARFOR` does not stop remaining executions.
+
+All elements are processed.
+
+The final result contains the result of every execution.
+
+Failure handling is defined by the Error Handling specification.
+
+---
+
+## 7.8 REF Restriction
+
+Functions called by `PARFOR` shall not contain `REF` parameters.
+
+Parallel execution cannot modify shared mutable state.
+
+Example
+
+Invalid
+
+```
+PARFOR users UpdateUser()
+```
+
+when
+
+```
+FUNCTION UpdateUser(
+
+    REF User user
+)
+```
+
+exists.
+
+---
+
+## 7.9 Design Principles
+
+The control flow model follows these principles.
+
+- Conditions contain only BOOL values.
+- Control structures only invoke functions.
+- ELSE is not supported.
+- RETURN-based early exits are not supported.
+- FOR preserves order.
+- PARFOR provides parallel execution with deterministic results.
+- Shared mutable state is avoided.
+
+---
+
+# 8. Error Handling
+
+## 8.1 Overview
+
+LLMK treats errors as explicit values.
+
+Errors are not hidden control flows.
+
+A function that may fail shall explicitly define its error behavior.
+
+The caller shall be able to understand possible failures by reading the function interface.
+
+---
+
+## 8.2 RESULT Type
+
+LLMK provides the built-in generic type `RESULT`.
+
+`RESULT` represents either a successful value or an error value.
+
+Syntax
+
+```
+RESULT ! T
+```
+
+Example
+
+```
+RESULT ! User
+```
+
+represents either:
+
+* a successful `User` value
+* an error value
+
+---
+
+## 8.3 SUCCESS and ERROR Values
+
+A `RESULT ! T` value contains exactly one of the following states.
+
+```
+SUCCESS(value)
+
+ERROR(error)
+```
+
+Example
+
+```
+SUCCESS(user)
+
+ERROR(NotFound)
+```
+
+---
+
+## 8.4 Error Declaration
+
+A function that may fail shall declare possible error types.
+
+Example
+
+```
+FUNCTION LoadUser(
+
+    INT id
+)
+
+ERROR
+
+    NotFound
+    PermissionDenied
+```
+
+The declared errors are part of the function contract.
+
+---
+
+## 8.5 Function Return Type
+
+Functions that may fail shall return a `RESULT ! T` type.
+
+Example
+
+```
+FUNCTION LoadUser(
+
+    INT id
+)
+
+RESULT ! User
+
+ERROR
+
+    NotFound
+```
+
+A successful execution returns:
+
+```
+SUCCESS(user)
+```
+
+A failed execution returns:
+
+```
+ERROR(NotFound)
+```
+
+---
+
+## 8.6 Error Handling with MATCH
+
+Errors shall be handled explicitly.
+
+`MATCH` is used to select handling functions.
+
+Example
+
+```
+MATCH result
+
+    SUCCESS HandleUser()
+
+    ERROR HandleError()
+```
+
+Error handling shall not be implicit.
+
+---
+
+## 8.7 Error Propagation
+
+A function calling another function that returns `RESULT` shall explicitly handle or propagate the result.
+
+Implicit error propagation is not supported.
+
+---
+
+## 8.8 PARFOR Error Handling
+
+`PARFOR` executes all elements regardless of individual failures.
+
+A failure in one execution shall not interrupt remaining executions.
+
+All execution results are returned after completion.
+
+Example
+
+```
+PARFOR users ProcessUser()
+```
+
+Possible result:
+
+```
+[
+    SUCCESS(user1),
+    ERROR(NotFound),
+    SUCCESS(user3)
+]
+```
+
+The result order is identical to the input array order.
+
+---
+
+## 8.9 Design Principles
+
+The error handling model follows these principles.
+
+* Errors are values.
+* Failure states are explicit.
+* Functions declare possible errors.
+* Hidden exception flows are avoided.
+* MATCH handles success and error states.
+* PARFOR completes all executions before returning results.
+
+---
+
+# 9. Built-in Types and Standard Library
+
+## 9.1 Overview
+
+LLMK separates language features from the standard library.
+
+Language built-in features are defined by the language specification.
+
+Standard library features are provided as modules and may evolve independently from the language specification.
+
+---
+
+## 9.2 Built-in Types
+
+The following types are built into LLMK.
+
+| Type         | Description                           |
+| ------------ | ------------------------------------- |
+| BOOL         | Boolean value                         |
+| INT          | Integer value                         |
+| DOUBLE       | Double-precision floating-point value |
+| STRING       | Unicode string                        |
+| ARRAY ! T    | Ordered collection of values          |
+| OPTIONAL ! T | Optional value                        |
+| RESULT ! T   | Success or error value                |
+
+Built-in types are always available.
+
+No import is required.
+
+---
+
+## 9.3 Built-in Literals
+
+The following literals are built into LLMK.
+
+| Literal | Description                   |
+| ------- | ----------------------------- |
+| TRUE    | Boolean true value            |
+| FALSE   | Boolean false value           |
+| NONE    | Absence of a meaningful value |
+
+`NONE` is used as the empty state of `OPTIONAL` and as a return value when a function has no meaningful result.
+
+---
+
+## 9.4 ARRAY
+
+`ARRAY ! T` represents an ordered collection.
+
+The order of elements is always preserved.
+
+Example
+
+```
+ARRAY ! STRING
+```
+
+ARRAY supports:
+
+* Iteration by `FOR`
+* Parallel processing by `PARFOR`
+
+The detailed operations of ARRAY are defined by the standard library.
+
+---
+
+## 9.5 OPTIONAL
+
+`OPTIONAL ! T` represents a value that may not exist.
+
+Example
+
+```
+OPTIONAL ! User
+```
+
+Possible states:
+
+```
+User value
+
+NONE
+```
+
+`OPTIONAL` represents absence of a value.
+
+It does not represent an error.
+
+---
+
+## 9.6 RESULT
+
+`RESULT ! T` represents the result of an operation that may succeed or fail.
+
+Possible states:
+
+```
+SUCCESS(value)
+
+ERROR(error)
+```
+
+`RESULT` is used when an operation may not complete successfully.
+
+It does not represent absence of a value.
+
+---
+
+## 9.7 Standard Library
+
+The standard library provides commonly used functionality as modules.
+
+Standard library modules follow normal LLMK module rules.
+
+Example
+
+```
+IMPORT File
+IMPORT Json
+IMPORT Math
+```
+
+Standard library modules:
+
+* Use the same syntax as user-defined modules.
+* Do not require special language syntax.
+* May be extended independently.
+
+---
+
+## 9.8 Language Feature and Library Boundary
+
+A feature shall be part of the language specification only when it affects program structure or interpretation.
+
+Examples of language features:
+
+* Variables
+* Functions
+* TYPE
+* Control flow
+* Built-in types
+
+Examples of standard library features:
+
+* File access
+* Network communication
+* Data formats
+* Time operations
+* External services
+
+---
+
+## 9.9 Design Principles
+
+The built-in type and library model follows these principles.
+
+* The language core remains small.
+* Common functionality is provided through modules.
+* Built-in features have deterministic behavior.
+* Library features follow normal module rules.
+* The distinction between syntax and library functionality is explicit.
+
+
+---
+
+# 10. Recommended Coding Style
+
+## 10.1 Overview
+
+This chapter defines recommended coding practices for LLMK programs.
+
+These rules are not required by the language specification.
+
+They are intended to improve readability, maintainability, and accuracy of AI-assisted software development.
+
+---
+
+## 10.2 One Concept per File
+
+Each source file should represent one concept.
+
+A module should have a clear and limited responsibility.
+
+Example:
+
+```
+User.llmk
+Order.llmk
+Payment.llmk
+```
+
+Avoid placing unrelated functionality in the same file.
+
+The purpose of a file should be understandable from its filename.
+
+---
+
+## 10.3 Small Functions
+
+Functions should perform one logical task.
+
+Large functions should be divided into smaller functions.
+
+Example:
+
+```
+ValidateUser(user)
+
+SaveUser(user)
+
+NotifyUser(user)
+```
+
+Avoid functions that perform many unrelated operations.
+
+Small functions improve:
+
+- Human readability
+- LLM understanding
+- Testing
+- Code reuse
+
+---
+
+## 10.4 Function Parameter Count
+
+Functions should have three or fewer parameters.
+
+Example:
+
+```
+FUNCTION CreateUser(
+
+    STRING name
+
+    INT age
+
+    STRING email
+)
+```
+
+When a function requires more parameters, consider creating a TYPE.
+
+Example:
+
+```
+TYPE UserCreateRequest
+
+    STRING name
+    INT age
+    STRING email
+    STRING address
+```
+
+Then pass the TYPE instead.
+
+```
+FUNCTION CreateUser(
+
+    UserCreateRequest request
+)
+```
+
+---
+
+## 10.5 Prefer TYPE for Related Data
+
+Related values should be grouped into a TYPE.
+
+Avoid:
+
+```
+FUNCTION CreateOrder(
+
+    STRING userName
+
+    STRING address
+
+    STRING productName
+
+    INT quantity
+)
+```
+
+Prefer:
+
+```
+TYPE OrderRequest
+
+    User user
+    Product product
+    INT quantity
+```
+
+Grouping related data into TYPE improves semantic clarity.
+
+---
+
+## 10.6 Avoid Deep Nesting
+
+Control structures should not be deeply nested.
+
+LLMK control structures only call functions.
+
+Avoid:
+
+```
+IF conditionA
+
+    IF conditionB
+
+        Execute()
+```
+
+Prefer:
+
+```
+IF conditionA
+
+    CheckConditionB()
+```
+
+Complex conditions should be moved into functions.
+
+---
+
+## 10.7 Boolean Naming
+
+Boolean variables and functions should clearly represent a state or condition.
+
+Recommended prefixes:
+
+```
+is
+has
+can
+should
+```
+
+Examples:
+
+```
+isActive
+
+hasPermission
+
+canExecute
+```
+
+Boolean names should describe a condition rather than an action.
+
+---
+
+## 10.8 Function Naming
+
+Function names should represent actions.
+
+Recommended:
+
+```
+CreateUser()
+
+ValidateOrder()
+
+SendMessage()
+```
+
+Avoid vague names:
+
+```
+Process()
+
+Handle()
+
+DoSomething()
+```
+
+---
+
+## 10.9 TYPE Naming
+
+TYPE names should represent entities or concepts.
+
+Recommended:
+
+```
+User
+
+Order
+
+PaymentRequest
+```
+
+Avoid implementation-specific names:
+
+```
+UserData
+
+TempObject
+
+Manager
+```
+
+---
+
+## 10.10 Avoid Unnecessary Abstraction
+
+LLMK favors explicit and simple designs.
+
+Avoid creating abstractions only for possible future requirements.
+
+Code should represent current requirements clearly.
+
+Unnecessary abstraction increases the amount of information that both humans and LLMs must understand.
+
+---
+
+## 10.11 Explicit over Clever
+
+LLMK code should prefer explicit behavior over compact or clever implementations.
+
+Avoid:
+
+- Hidden side effects
+- Complex expressions
+- Unclear naming
+- Excessive abstraction
+
+Prefer:
+
+- Small functions
+- Clear names
+- Simple control flow
+- Explicit data flow
+
+---
+
+## 10.12 Design Principles
+
+The recommended coding style follows these principles.
+
+- Optimize for LLM readability.
+- Keep responsibilities clear.
+- Prefer composition over complexity.
+- Use TYPE to represent concepts.
+- Use functions to represent behavior.
+- Minimize hidden behavior.
+- Prefer explicit code over clever code.
+
+
+---
+
+
+
+# 11. Example Programs
+
+## 11.1 Overview
+
+This chapter provides example LLMK programs.
+
+These examples demonstrate recommended usage of LLMK features.
+
+The examples are not part of the language specification.
+
+---
+
+## 11.2 Program Entry Point
+
+LLMK does not define a special entry point such as `Main`.
+
+Any function may be used as the program entry point.
+
+The execution environment specifies the module and function to execute.
+
+Example:
+
+```
+llmk run Application Start
+```
+
+This executes:
+
+```
+Application.llmk
+
+FUNCTION Start()
+```
+
+No function name is reserved for program startup.
+
+---
+
+## 11.3 Hello World
+
+Example:
+
+```
+FUNCTION Start()
+
+    Print("Hello World")
+```
+
+The execution environment may execute `Start` as the entry point.
+
+---
+
+## 11.4 TYPE and Module Example
+
+A file defines one module.
+
+The filename, module name, and TYPE name are identical.
+
+Example file:
+
+```
+User.llmk
+```
+
+Content:
+
+```
+TYPE User
+
+    STRING name
+    STRING email
+
+
+FUNCTION Create(
+
+    STRING name
+
+)
+
+    User(
+        name,
+        ""
+    )
+
+
+FUNCTION Validate(
+
+    User user
+
+)
+
+    ValidateUser(user)
+```
+
+All functions in `User.llmk` belong to the `User` TYPE.
+
+No separate method declaration syntax exists.
+
+---
+
+## 11.5 Immutable and Mutable Variables
+
+Example:
+
+```
+LET STRING name = "Alice"
+
+VAR INT count = 0
+
+count = 1
+```
+
+`LET` prevents reassignment.
+
+`VAR` allows reassignment.
+
+---
+
+## 11.6 IF Example
+
+Conditions are BOOL values.
+
+Control structures only call functions.
+
+Example:
+
+```
+LET BOOL isValid = Validate(user)
+
+IF isValid
+
+    SaveUser(user)
+```
+
+Alternative behavior is expressed using another condition.
+
+Example:
+
+```
+LET BOOL isInvalid = NotValidate(user)
+
+IF isInvalid
+
+    RejectUser(user)
+```
+
+---
+
+## 11.7 MATCH Example
+
+MATCH selects a function based on a value.
+
+Example:
+
+```
+LET RESULT ! User result = LoadUser(id)
+
+MATCH result
+
+    SUCCESS UseUser()
+
+    ERROR HandleError()
+```
+
+---
+
+## 11.8 FOR Example
+
+FOR processes elements sequentially.
+
+Example:
+
+```
+FOR users SendNotification()
+```
+
+The execution order follows the array order.
+
+---
+
+## 11.9 PARFOR Example
+
+PARFOR processes elements in parallel.
+
+Example:
+
+```
+LET ARRAY ! RESULT ! User results = PARFOR users ProcessUser()
+```
+
+All elements are processed.
+
+The result order matches the input array order.
+
+---
+
+## 11.10 REF Example
+
+REF explicitly allows modification.
+
+Example:
+
+```
+FUNCTION Rename(
+
+    REF User user
+
+    STRING name
+)
+
+    user.name = name
+
+    NONE
+```
+
+Without REF, values are passed by value.
+
+---
+
+## 11.11 Function Composition Example
+
+Large operations should be divided into small functions.
+
+Avoid:
+
+```
+ProcessEverything()
+```
+
+Prefer:
+
+```
+ValidateOrder(order)
+
+CalculatePrice(order)
+
+SaveOrder(order)
+
+NotifyCustomer(order)
+```
+
+---
+
+## 11.12 Design Principles Demonstrated
+
+These examples demonstrate the following LLMK principles.
+
+- Explicit behavior
+- Small functions
+- Limited control flow
+- Visible data modification
+- Clear error handling
+- Simple module structure
+- No unnecessary special cases
+
+---
+
+# 12. Formal Grammar
+
+## 12.1 Overview
+
+This chapter defines the formal structure of LLMK syntax.
+
+The grammar describes the relationship between modules, types, functions, variables, and control structures.
+
+This grammar is intended as a reference for language implementations.
+
+---
+
+## 12.2 Program Structure
+
+A program consists of one or more modules.
+
+```
+program ::= module+
+```
+
+A module is defined by one source file.
+
+```
+module ::= type_definition function_definition*
+```
+
+A module name is identical to the filename.
+
+---
+
+## 12.3 TYPE Definition
+
+A TYPE defines a data structure.
+
+```
+type_definition ::=
+    TYPE identifier
+        field_definition*
+```
+
+A TYPE contains fields.
+
+```
+field_definition ::=
+    type identifier
+```
+
+A module may define at most one TYPE.
+
+The TYPE name shall be identical to the module name.
+
+---
+
+## 12.4 Function Definition
+
+A function defines executable behavior.
+
+```
+function_definition ::=
+    FUNCTION identifier
+        parameter_list
+        statement*
+```
+
+Parameters are defined by type and name.
+
+```
+parameter ::=
+    REF? type identifier
+```
+
+---
+
+## 12.5 Variable Declaration
+
+Variables are declared using LET or VAR.
+
+```
+variable_declaration ::=
+    LET type identifier = value
+    |
+    VAR type identifier = value
+```
+
+Every variable shall be initialized.
+
+---
+
+## 12.6 Function Call
+
+A function call invokes a function.
+
+```
+function_call ::=
+    identifier(arguments)
+```
+
+Arguments are passed by position.
+
+Named arguments are not supported.
+
+Nested function calls are not supported.
+
+---
+
+## 12.7 IF
+
+IF executes a function when a BOOL value is true.
+
+```
+if_statement ::=
+    IF bool_identifier
+        function_call
+```
+
+The condition shall be a BOOL value.
+
+---
+
+## 12.8 MATCH
+
+MATCH selects a function based on a value.
+
+```
+match_statement ::=
+    MATCH identifier
+        match_case+
+```
+
+A match case consists of a value and a function call.
+
+```
+match_case ::=
+    value function_call
+```
+
+---
+
+## 12.9 FOR
+
+FOR applies a function to every array element.
+
+```
+for_statement ::=
+    FOR array_identifier function_call
+```
+
+Execution order follows array order.
+
+---
+
+## 12.10 PARFOR
+
+PARFOR applies a function to every array element in parallel.
+
+```
+parfor_statement ::=
+    PARFOR array_identifier function_call
+```
+
+All executions complete before returning results.
+
+---
+
+## 12.11 Return Value
+
+A function returns the value produced by the final executable statement.
+
+```
+function_return ::=
+    final_statement
+```
+
+Every function shall end with a statement producing a value.
+
+The RETURN statement does not exist.
+
+---
+
+## 12.12 Error Declaration
+
+Functions may declare possible errors.
+
+```
+error_definition ::=
+    ERROR
+        error_type*
+```
+
+A function returning possible errors shall return:
+
+```
+RESULT ! T
+```
+
+---
+
+## 12.13 Type Expressions
+
+Type expressions are defined as:
+
+```
+type ::=
+    primitive_type
+    |
+    TYPE_NAME
+    |
+    ARRAY ! type
+    |
+    OPTIONAL ! type
+    |
+    RESULT ! type
+```
+
+---
+
+## 12.14 Design Principles
+
+The formal grammar follows these principles.
+
+- Syntax is explicit.
+- Ambiguous constructs are avoided.
+- Control structures only call functions.
+- Complex expressions are not supported.
+- Program structure is determined by modules and functions.
+
+---
+
+# 13. Expression and Evaluation Rules
+
+## 13.1 Overview
+
+LLMK uses a simple evaluation model designed for predictable behavior.
+
+Expressions are intentionally limited.
+
+Complex expressions are not supported.
+
+Program logic should be expressed through functions and explicit values.
+
+---
+
+## 13.2 Values
+
+A value is a literal, variable, or function result.
+
+Examples:
+
+```
+10
+
+"Hello"
+
+TRUE
+
+user
+
+GetUser()
+```
+
+Values have exactly one type.
+
+---
+
+## 13.3 No Complex Expressions
+
+LLMK does not support complex expressions.
+
+The following are not supported:
+
+```
+a + b * c
+
+user.age > 20
+
+isActive && hasPermission
+
+condition ? value1 : value2
+```
+
+Complex logic shall be implemented by functions.
+
+Example:
+
+```
+LET BOOL canAccess = CheckAccess(user)
+
+IF canAccess
+
+    AllowAccess()
+```
+
+---
+
+## 13.4 Operators
+
+Operators are intentionally limited.
+
+LLMK does not provide general expression operators.
+
+Operations shall be performed by functions.
+
+Example:
+
+Instead of:
+
+```
+total = price * quantity
+```
+
+Use:
+
+```
+LET INT total = CalculateTotal(price, quantity)
+```
+
+---
+
+## 13.5 Function Evaluation
+
+Function calls are evaluated before their result is used.
+
+Example:
+
+```
+LET User user = LoadUser(id)
+```
+
+The function `LoadUser` is executed and the returned value is assigned.
+
+Function calls shall not be nested.
+
+Invalid:
+
+```
+SaveUser(ParseUser(data))
+```
+
+Valid:
+
+```
+LET User user = ParseUser(data)
+
+SaveUser(user)
+```
+
+---
+
+## 13.6 Assignment Evaluation
+
+Assignment stores a value into a mutable variable.
+
+Example:
+
+```
+VAR INT count = 0
+
+count = GetCount()
+```
+
+The right side is evaluated first.
+
+The result is then assigned.
+
+---
+
+## 13.7 Boolean Evaluation
+
+Boolean values are explicit values.
+
+Conditions require a BOOL value.
+
+Example:
+
+```
+LET BOOL isReady = CheckReady()
+
+IF isReady
+
+    Start()
+```
+
+The following are not supported:
+
+```
+IF count > 0
+
+IF user != NONE
+
+IF a && b
+```
+
+Such logic shall be implemented by functions.
+
+---
+
+## 13.8 Evaluation Order
+
+LLMK evaluation order is deterministic.
+
+The order is:
+
+1. Evaluate function arguments.
+2. Execute the function.
+3. Receive the result.
+4. Assign or use the result.
+
+Side effects occur only through explicitly defined mechanisms.
+
+---
+
+## 13.9 Side Effects
+
+Side effects are only allowed through:
+
+- Functions with `REF` parameters.
+- External operations defined by standard library modules.
+
+Functions without `REF` parameters should not modify external state.
+
+---
+
+## 13.10 Design Principles
+
+The expression model follows these principles.
+
+- Prefer functions over operators.
+- Avoid implicit behavior.
+- Keep evaluation deterministic.
+- Make data flow visible.
+- Minimize syntax ambiguity.
+- Optimize for LLM understanding.
+
+---
+
+T.B.D.
+
+以下、記載予定
+
+14. Module System
+
+※重要度高
+
+内容:
+
+ファイル = モジュール
+TYPE名 = ファイル名 = モジュール名
+import仕様
+標準ライブラリとユーザーモジュールの扱い
+循環参照禁止
+モジュール間アクセス規則
+
+現在3章・9章で一部触れていますが、独立章にした方が良いです。
+
+15. Object System
+
+※重要度高
+
+内容:
+
+TYPE
+インスタンス生成
+フィールドアクセス
+継承なし
+ポリモーフィズムなし
+composition（組み合わせ）による設計
+
+現在4章ではデータ型として扱っていますが、OOP部分は別章が必要です。
+
+16. Memory and Reference Model
+
+※重要度高
+
+内容:
+
+値渡しが基本
+REFは関数引数のみ
+REF可能なのはVARのみ
+ローカル変数へのREF禁止
+コピータイミング
+ライフサイクル
+
+以前議論したメモリモデルを正式化する章です。
+
+17. Concurrency Model
+
+※重要度高
+
+内容:
+
+PARFOR
+並列実行モデル
+実行順序保証
+結果順序保証
+REF禁止理由
+将来のasync/spawn/join拡張余地
+
+7章のPARFORだけでは不足しています。
+
+18. Standard Library Specification
+
+内容:
+
+標準ライブラリ設計方針
+Module形式
+File
+Network
+JSON
+DateTime
+Math
+
+9章の「扱い」から詳細へ分離。
+
+19. Security and Safety Model
+
+LLMKではAI生成コードを想定するため重要。
+
+内容:
+
+副作用の明示
+外部アクセス制御
+権限モデル
+unsafe機能の扱い
+秘密情報管理
+20. Tool and AI Integration
+
+LLMK固有として重要。
+
+内容:
+
+MCPなど外部ツール連携
+AIが読むメタ情報
+モジュール解析
+コード生成時の補助情報
+Tool呼び出し規約
+
+LLMファースト言語として特徴になる部分です。
+
+21. Versioning and Compatibility
+
+内容:
+
+言語バージョン
+互換性
+非互換変更
+標準ライブラリバージョン
+22. Future Extensions
+
+将来検討事項。
+
+候補:
+
+Generic
+Interface
+Async
+Package Manager
+Reflection
+Macro
+AI Annotation
