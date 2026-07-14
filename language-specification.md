@@ -1,299 +1,699 @@
-# ai-kaizen-lang (aikai) Spec v1.0
+# LLM K (LLM Kaizen Language)
+Language Specification
 
-## 1. 基本方針
-
-- 構文は単純・一意
-- 糖衣構文なし
-- 同一処理は同一記法
-- 暗黙動作を禁止
-- LLMが誤解しないことを最優先
+Version: 1.1 (Draft)
 
 ---
 
-## 2. 命名規則
+# 1. Introduction
 
-- 予約語：大文字
-- 識別子：小文字スネークケース
-- コメント：行頭 `#` のみ
+## 1.1 Overview
 
----
+LLM K (LLM Kaizen Language, abbreviated as LLMK) is a programming language designed primarily for Large Language Models (LLMs).
 
-## 3. 文
+Unlike conventional programming languages, LLMK is designed with the assumption that source code is read, generated, modified, and maintained by both humans and AI.
 
-- 1行 = 1文
-- 途中改行禁止
+The primary objective is to minimize ambiguity and reduce the probability of incorrect interpretation by LLMs while maintaining readability for human developers.
 
----
+LLMK does not attempt to replace existing programming languages. Instead, it explores a language design optimized for AI-assisted software development.
 
-## 4. 型
 
-### 基本型
-- INT
-- STRING
-- BOOL
-
-### 複合型
-- ARRAY ! TYPE
-- STRUCT name ... END STRUCT
-
-### 特殊型
-- REF TYPE
-- TASK TYPE
+The word "Kaizen" represents continuous improvement. LLMK is intended to evolve based on practical experience with AI-assisted software development while preserving its core design principles.
 
 ---
 
-## 5. 型システム
+## 1.2 Goals
 
-- 完全静的型
-- 完全明示型
-- 名義的型システム（STRUCTは名前で識別）
-- 型の完全一致のみ許可
-- 暗黙型変換は禁止
+LLMK has the following goals.
 
----
-
-## 6. 値と式
-
-### value
-- リテラル
-- 変数
-- 関数呼び出し結果
-- STRUCT初期化
-
-### expr
-- value OP value
-
-### 制約
-- exprは1演算のみ
-- ネスト禁止
-- valueはexprではない
-- 複雑な計算はLETで分解
+- Minimize ambiguity.
+- Reduce syntax complexity.
+- Make program flow deterministic.
+- Encourage modular and maintainable code.
+- Reduce token consumption where it does not reduce readability.
+- Optimize code understanding for both humans and LLMs.
 
 ---
 
-## 7. 演算子
+## 1.3 Design Philosophy
 
-- 算術: + - * / %
-- 比較: == != < <= > >=
-- 論理: && ||
-- ビット: & | ^ << >>
+LLMK follows several fundamental principles.
 
----
+### LLM First
 
-## 8. 変数
-LET TYPE name = value_or_expr VAR TYPE name = value_or_expr
+Language features are evaluated primarily from the perspective of whether they reduce misunderstanding by LLMs.
 
-- 型必須
-- 初期化必須
-- LETは不変
-- VARは再代入可能
+### Simplicity
 
----
+A language feature should have exactly one purpose.
 
-## 9. 代入
-name = value_or_expr
+Complex syntax that combines multiple concepts is avoided.
 
-- VARのみ可能
+### Deterministic Behavior
 
----
+The behavior of every language feature should be uniquely determined from the source code.
 
-## 10. 制御
+Implicit or implementation-defined behavior is minimized.
 
-### IF
-IF condition statements ELSE statements END IF
+### Function-Oriented Design
 
-- conditionはBOOLのみ
+Functions are the smallest unit of behavior.
 
----
+Complex logic should be expressed by composing small functions rather than by deeply nested control structures.
 
-### FOR
-FOR array AS item statements END FOR
+### Composition over Inheritance
 
-- ARRAYのみ対象
+Inheritance introduces hidden relationships that increase the complexity of software understanding.
+
+LLMK therefore adopts composition instead of inheritance.
+
+### One Concept per File
+
+Each source file represents exactly one concept.
+
+This improves discoverability for both humans and AI.
 
 ---
 
-## 11. 関数
+## 1.4 Non-goals
 
-### 定義
-TYPE FUNC name PARAM TYPE param ... statements RETURN value_or_expr END FUNC
+LLMK intentionally does not attempt to support every programming paradigm.
 
-### 呼び出し
-LET TYPE v = func arg1 arg2
+The following features are intentionally excluded.
 
-### 制約
+- Class inheritance
+- Multiple inheritance
+- Else-if chains
+- Early return
+- Break
+- Continue
+- Complex nested expressions
+- Deep control-flow nesting
 
-- 引数はvalueのみ（expr禁止）
-- 戻り値は1つのみ
-
----
-
-## 12. ERROR処理
-
-### ERROR関数
-TYPE FUNC name ... ERROR
-
-### raise
-std.error.raise "ERROR_CODE"
-
-### ERRORブロック
-FUNC ... statements ERROR err handler END FUNC
-
-### ルール
-
-- raiseは必ず伝播
-- 同一関数内では捕捉不可
-- ERRORは下位関数のみ捕捉
-- 非ERROR関数がERROR関数を呼ぶ場合はERRORブロック必須
-
-### 状態
-
-- ERRORは状態を巻き戻さない
+These features are omitted to improve readability and reduce ambiguity.
 
 ---
 
-## 13. リソース管理
+## 1.5 Design Priorities
 
-- スコープ終了時に自動解放
-- ERROR時も解放
-- 解放順はLIFO
+When a trade-off exists, LLMK prioritizes the following order.
 
----
+1. Correct interpretation by LLMs
+2. Readability for humans
+3. Simplicity of language specification
+4. Token efficiency
+5. Runtime performance
 
-## 14. メモリモデル
 
-- すべて値渡し
-- REFで明示参照
-- 副作用はREF経由のみ
+# 2. Lexical Structure
 
-### REF制約
+## 2.1 Source File
 
-- REFはVARのみ対象
-- REF引数にはVARのみ渡せる
+The basic unit of a program is a source file.
 
----
+Each source file shall represent exactly one concept.
 
-## 15. STRUCT
+The filename defines the module name.
 
-### 定義
-STRUCT name TYPE field END STRUCT
+Example
 
-### 初期化
-LET name v = { value1, value2 }
+```
+User.llmk
+```
 
-- 順序一致必須
-- 省略不可
+defines the module
 
-### 特性
+```
+User
+```
 
-- 不変（フィールド変更不可）
-
----
-
-## 16. ARRAY
-
-- 要素は同一型のみ
-- 型は明示
+No explicit module declaration is required.
 
 ---
 
-## 17. 並列
+## 2.2 Character Encoding
 
-### spawn
-LET TASK TYPE t = std.task.spawn func arg1 arg2
-
-### join
-LET TYPE v = std.task.join t
+Source files shall be encoded using UTF-8.
 
 ---
 
-### 並列ルール
+## 2.3 Line Structure
 
-- spawnはERROR関数も許可
-- 引数はspawn時に評価・コピー
-- ERRORはjoin時に発生
-- 未joinはスコープ終了時に暗黙join
-- 暗黙joinでもERRORはraise
-- ERROR発生後は以降処理されない
-- 並列関数にREF引数は禁止
-- 副作用（IO）は許可
-- 副作用順序は未定義
+LLMK is a line-oriented language.
+
+Each statement occupies exactly one logical line.
+
+A statement shall not span multiple lines except where explicitly allowed by the language specification.
 
 ---
 
-## 18. キャンセル
-std.task.cancel t
+## 2.4 Comments
 
-- join時に raise "CANCELLED"
-- 観測点でのみ発生
+Single-line comments begin with
 
----
+```
+//
+```
 
-## 19. モジュール
-IMPORT full.path.module AS alias
+Everything following `//` until the end of the line is ignored.
 
-- フルパス必須
-- 循環参照禁止
+Example
 
----
+```
+// Create user
+LET User user = User()
+```
 
-## 20. 禁止事項
-
-- 糖衣構文
-- 暗黙型変換
-- exprネスト
-- 複合式
-- 関数引数へのexpr
-- 不明確な共有状態
-- 並列でのREF使用
+Multi-line comments are not supported.
 
 ---
 
-## 21. 構文（EBNF）
+## 2.5 Whitespace
 
-### expr
-expr = value operator value ;
+Whitespace is used only to separate lexical elements.
 
-### value
-value = literal | identifier | func_call | struct_literal ;
+Multiple spaces are treated as a single separator.
 
-### func_call
-identifier value...
+Indentation improves readability but does not define program semantics unless explicitly specified.
 
 ---
 
-## 22. 実行モデル
+## 2.6 Identifiers
 
-- ASTベース実行
-- ERRORは例外的制御
-- 並列はjoin時に同期
+Identifiers consist of
 
----
+- Unicode letters
+- Digits
+- Underscore (_)
 
-## 23. コンパイラ構成
+The first character shall not be a digit.
 
-1. Lexer
-2. Parser
-3. AST生成
-4. 型チェック
-5. ERROR検証
-6. 並列制約検証
-7. 実行
+Identifiers are case-sensitive.
 
----
+Examples
 
-## 24. 設計の本質
-
-- 式を1段に制限
-- 副作用をREFに限定
-- ERRORを単一経路に統一
-- 並列を安全側に制限
+```
+User
+user
+user_name
+Login
+```
 
 ---
 
-## 25. 特徴
+## 2.7 Keywords
 
-- 曖昧性ゼロ
-- LLM誤解耐性最大
-- 実装容易
-- 並列安全
+The following words are reserved.
+
+```
+IMPORT
+
+TYPE
+
+FUNCTION
+
+LET
+VAR
+REF
+
+IF
+MATCH
+FOR
+PARFOR
+
+TRUE
+FALSE
+NONE
+
+ERROR
+```
+
+Reserved keywords shall not be used as identifiers.
+
+---
+
+## 2.8 Parentheses
+
+Parentheses are permitted for
+
+- Function calls
+- Instance creation
+
+Examples
+
+```
+Save(user)
+
+User()
+
+User("Alice", 20)
+```
+
+Nested function calls are not permitted.
+
+Valid
+
+```
+LET User user = Parse(text)
+Save(user)
+```
+
+Invalid
+
+```
+Save(Parse(text))
+```
+
+---
+
+## 2.9 Semicolons
+
+Semicolons are not used.
+
+Each statement ends at the end of the logical line.
+
+---
+
+## 2.10 Language Philosophy
+
+The lexical structure of LLMK intentionally minimizes symbols and punctuation.
+
+Every syntax element should have a single, unambiguous meaning.
+
+Reducing ambiguity is prioritized over minimizing the number of characters.
+
+
+# 3. Program Structure
+
+## 3.1 Project Structure
+
+A LLMK project consists of one or more source files.
+
+Each source file defines exactly one module.
+
+The module name is derived from the filename.
+
+Example
+
+```
+User.llmk
+Order.llmk
+Math.llmk
+```
+
+defines the modules
+
+```
+User
+Order
+Math
+```
+
+---
+
+## 3.2 One Concept per File
+
+Each source file shall represent exactly one concept.
+
+A concept may be
+
+- a TYPE
+- a module consisting of related functions
+
+A source file shall not contain multiple unrelated concepts.
+
+This rule improves readability and allows both humans and LLMs to understand the purpose of a file without additional context.
+
+---
+
+## 3.3 Module
+
+A module is the namespace represented by a source file.
+
+Modules do not require explicit declarations.
+
+The module name is always identical to the filename.
+
+Example
+
+```
+Math.llmk
+```
+
+```
+FUNCTION Sqrt(...)
+FUNCTION Pow(...)
+```
+
+Functions are referenced as
+
+```
+Math.Sqrt(...)
+Math.Pow(...)
+```
+
+Global functions are not supported.
+
+---
+
+## 3.4 TYPE
+
+A source file may define one TYPE.
+
+If a TYPE is defined, all of the following rules apply.
+
+- The TYPE name shall be identical to the module name.
+- The TYPE name shall be identical to the filename.
+- A source file shall contain at most one TYPE definition.
+
+Example
+
+```
+User.llmk
+```
+
+```
+TYPE User
+
+    STRING name
+    INT age
+```
+
+The following is invalid.
+
+```
+User.llmk
+
+TYPE Customer
+```
+
+The following is also invalid.
+
+```
+User.llmk
+
+TYPE User
+
+TYPE Address
+```
+
+These restrictions ensure that every TYPE can be uniquely identified by its filename.
+
+---
+
+## 3.5 Function Modules
+
+If a source file does not define a TYPE, it becomes a function module.
+
+Example
+
+```
+Math.llmk
+```
+
+```
+FUNCTION Sqrt(...)
+FUNCTION Pow(...)
+```
+
+Functions are referenced using the module name.
+
+```
+Math.Sqrt(...)
+Math.Pow(...)
+```
+
+---
+
+## 3.6 IMPORT
+
+Modules are imported using the IMPORT statement.
+
+Example
+
+```
+IMPORT User
+IMPORT Math
+```
+
+Imported modules are referenced by their module names.
+
+```
+LET User user = User()
+
+LET DOUBLE result = Math.Sqrt(value)
+```
+
+---
+
+## 3.7 Module Dependencies
+
+Circular module dependencies should be avoided.
+
+Language implementations may reject circular imports.
+
+---
+
+## 3.8 Design Principles
+
+The program structure of LLMK follows these principles.
+
+- One file represents one concept.
+- One file defines one module.
+- One file defines at most one TYPE.
+- TYPE name, module name, and filename are always identical.
+- Global namespaces are not supported.
+- Explicit module declarations are unnecessary.
+
+
+# 4. Type System
+
+## 4.1 Overview
+
+LLMK is a statically typed language.
+
+The type of every variable, parameter, field, and function return value shall be explicitly declared.
+
+Implicit type inference is not supported.
+
+---
+
+## 4.2 Primitive Types
+
+LLMK provides the following primitive types.
+
+| Type | Description |
+|------|-------------|
+| BOOL | Boolean value |
+| INT | Signed integer |
+| DOUBLE | Double-precision floating-point number |
+| STRING | Unicode string |
+
+Additional primitive types may be added by future language versions.
+
+---
+
+## 4.3 Composite Types
+
+LLMK provides the following composite types.
+
+```
+ARRAY ! T
+OPTIONAL ! T
+```
+
+Examples
+
+```
+ARRAY ! STRING
+
+OPTIONAL ! User
+```
+
+Composite types may be nested.
+
+Example
+
+```
+ARRAY ! OPTIONAL ! User
+```
+
+---
+
+## 4.4 TYPE
+
+TYPE defines a user-defined value type.
+
+Example
+
+```
+TYPE User
+
+    STRING name
+    INT age
+```
+
+A TYPE groups related data into a single logical unit.
+
+TYPEs do not support inheritance.
+
+Composition is the preferred design approach.
+
+---
+
+## 4.5 Default Values
+
+Every type has a well-defined default value.
+
+Variables and fields are always initialized.
+
+The default values are defined as follows.
+
+| Type | Default Value |
+|------|---------------|
+| BOOL | FALSE |
+| INT | 0 |
+| DOUBLE | 0.0 |
+| STRING | "" |
+| ARRAY ! T | Empty array |
+| OPTIONAL ! T | NONE |
+| TYPE | Every field initialized to its default value |
+
+Uninitialized values do not exist in LLMK.
+
+---
+## 4.6 Type Construction
+
+Instances of a TYPE are created using the type construction expression.
+
+The syntax is
+
+```
+TypeName()
+
+TypeName(value1, value2, ...)
+```
+
+Type construction is a language construct.
+
+It is not a function call and cannot be overridden.
+
+If no arguments are specified, every field is initialized to its default value.
+
+Example
+
+```
+TYPE User
+
+    STRING name
+    INT age
+```
+
+```
+LET User user = User()
+```
+
+is equivalent to
+
+```
+name = ""
+age = 0
+```
+
+If arguments are specified, they shall be assigned to the fields in declaration order.
+
+Example
+
+```
+LET User user = User(
+    "Alice",
+    20
+)
+```
+
+is equivalent to
+
+```
+name = "Alice"
+age = 20
+```
+
+The number of arguments shall exactly match the number of fields.
+
+Named arguments are not supported.
+
+User-defined constructors are not supported.
+
+---
+
+## 4.6 Value Semantics
+
+All values are copied by default.
+
+Assignment creates an independent copy.
+
+Example
+
+```
+LET User user1 = User()
+
+LET User user2 = user1
+```
+
+Modifying `user2` does not affect `user1`.
+
+Reference semantics require the explicit use of `REF`.
+
+---
+
+## 4.7 Reference Semantics
+
+LLMK uses value semantics by default.
+
+Reference semantics are only available through `REF`.
+
+Implicit reference sharing is not supported.
+
+The detailed behavior of `REF` is defined in a later chapter.
+
+---
+
+## 4.8 Type Conversion
+
+Implicit type conversion is not supported.
+
+All type conversions shall be explicit.
+
+Example
+
+```
+INT(value)
+
+DOUBLE(value)
+
+STRING(value)
+```
+
+---
+
+## 4.9 Equality
+
+Primitive types support value equality.
+
+TYPE equality compares every field.
+
+Composite types compare their contained values recursively.
+
+---
+
+## 4.10 Design Principles
+
+The type system follows these principles.
+
+- Every value has exactly one type.
+- Every type has a deterministic default value.
+- Every variable and field is initialized.
+- Value semantics are the default.
+- Reference semantics require explicit `REF`.
+- Composition is preferred over inheritance.
+
