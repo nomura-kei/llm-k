@@ -54,13 +54,44 @@ Explains the purpose of LLM K, its intended users, and the software development 
 
 **[Purpose and Use Cases](docs/purpose-and-use-cases.md)**
 
+### Development Plan
+
+Describes the staged path from the language specification to a reference
+implementation.
+
+**[Development Plan](docs/development-plan.md)**
+
 ## Current Status
 
-LLM K is currently a language design and specification project.
+LLM K is currently a language design project with an early Python reference
+implementation.
 
-The language specification is under active development.
+The reference implementation currently provides a Lexer, Parser, AST, static
+type checker, deterministic Interpreter, and initial CLI.
 
-The current focus is to establish a clear and consistent language specification before implementation.
+The implementation is intentionally incomplete while the language
+specification is being stabilized.
+
+## Quick Start
+
+Install the project and development dependencies with `uv`:
+
+```text
+uv sync
+```
+
+Check and run the example program:
+
+```text
+uv run llmk check examples/counter.llmk
+uv run llmk run examples/counter.llmk Counter.Create 4
+```
+
+Run the test suite:
+
+```text
+uv run pytest
+```
 
 ## Design Philosophy
 
@@ -97,7 +128,9 @@ llm-k/
 
 ## Contributing
 
-LLM K is currently focused on language design and specification.
+LLM K is developed specification-first. See [Contributing](CONTRIBUTING.md)
+for change guidelines and [Development Plan](docs/development-plan.md) for the
+implementation roadmap.
 
 Discussion, review, and experimentation are welcome.
 
